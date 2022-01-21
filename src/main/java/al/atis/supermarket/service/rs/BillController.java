@@ -25,11 +25,48 @@ public class BillController extends RsRepositoryService<Bill, String> {
     public void applyFilters() throws Exception {
 
         if (nn("like.created_by")) {
-            getEntityManager().unwrap(Session.class).enableFilter("like.created_by").setParameter("created_by", likeParamToLowerCase("like.created_by"));
+             getEntityManager().unwrap(Session.class)
+                    .enableFilter("like.created_by")
+                    .setParameter("created_by",
+                            likeParamToLowerCase("like.created_by"));
+        }
+
+        if(nn("gt.total_price")){
+             getEntityManager().unwrap(Session.class)
+                    .enableFilter("gt.total_price")
+                    .setParameter("total_price", _doubleParam("gt.total_price"));
+        }
+
+        if(nn("lt.total_price")){
+            getEntityManager().unwrap(Session.class)
+                    .enableFilter("lt.total_price")
+                    .setParameter("total_price", _doubleParam("lt.total_price"));
+        }
+
+        if(nn("from.created_date")) {
+            getEntityManager().unwrap(Session.class)
+                    .enableFilter("from.created_date")
+                    .setParameter("createdDate", _localDateParam("from.created_date"));
+        }
+
+        if(nn("to.created_date")) {
+            getEntityManager().unwrap(Session.class)
+                    .enableFilter("to.created_date")
+                    .setParameter("toCreatedDate",_localDateParam("to.created_date"));
         }
     }
 
+
+
     @Override
-    protected void prePersist(Bill object) throws Exception {
+    protected void getListSizePostFetch(Bill bill) throws Exception {
+        //bill.setCreated_date(LocalDate.now());
+    }
+
+
+    @Override
+    protected void prePersist(Bill bill) throws Exception {
+
+        //bill.created_date = LocalDate.now();
     }
 }

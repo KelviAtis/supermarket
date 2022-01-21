@@ -6,12 +6,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import javax.persistence.EntityManager;
+import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -21,14 +19,15 @@ import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 
+
 import static al.atis.api.management.AppConstants.ORDER_BY_ASC;
 import static al.atis.api.management.AppConstants.ORDER_BY_DESC;
 
-public abstract class RsRepositoryService <T, U> extends RsResponseService{
+public abstract class RsRepositoryService <T, U> extends RsResponseService {
 
     protected Logger logger = LoggerFactory.getLogger(getClass());
 
-    private Class<T> entityClass;
+    private final Class<T> entityClass;
 
     @Autowired
     EntityManager entityManager;
@@ -45,6 +44,7 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService{
         return entityManager;
     }
 
+
     protected void prePersist(T object) throws Exception {
     }
 
@@ -60,7 +60,7 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService{
         }
 
         try {
-            entityManager.persist(object);
+            entityManager.merge(object);
             if (object == null) {
                 logger.error("Failed to create resource: " + object);
                 return jsonErrorMessageResponse(object);
@@ -82,32 +82,137 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService{
     protected void postPersist(T object) throws Exception {
     }
 
+    protected void putPrePersist(T object) throws Exception{}
+    protected void putPostPersist(T object) throws Exception{}
 
-//    @GetMapping("/{id}")
-//    @Transactional
-//    public ResponseEntity fetch(@PathVariable("id") U id) {
-//        logger.info("fetch: " + id);
-//
-//        try {
-//            T t = find(id);
-//            if (t == null) {
-//                return handleObjectNotFoundRequest(id);
-//            } else {
-//                try {
-//                    postFetch(t);
-//                } catch (Exception e) {
-//                    logger.errorv(e, "fetch: " + id);
-//                }
-//                return ResponseEntity.status(HttpStatus.OK).body(t);
-//            }
-//        } catch (NoResultException e) {
-//            logger.error("fetch: " + id, e);
-//            return jsonMessageResponse(HttpStatus.NOT_FOUND, id);
-//        } catch (Exception e) {
-//            logger.error("fetch: " + id, e);
-//            return jsonErrorMessageResponse(e);
-//        }
-//    }
+    protected void deletePrePersist(T object) throws Exception{}
+    protected void deletePostPersist(T object) throws Exception{}
+
+    protected void postGetByIdPersist(T object) throws Exception{}
+
+    protected void getListSizePostFetch(T object) throws Exception{}
+
+    @PutMapping("/{id}")
+    @Transactional
+    public ResponseEntity<T> updateObject (@RequestBody T object, @PathVariable String id){
+        logger.info("prePersistUpdatingObject");
+        try {
+            putPrePersist(object);
+        }  catch (Exception e) {
+            logger.error("prePersistUpdatingObject", e);
+            return jsonMessageResponse(HttpStatus.BAD_REQUEST, e);
+        }
+
+        try {
+            if(object == null){
+                logger.error("Object is null");
+                return jsonErrorMessageResponse(object);
+            }else {
+                entityManager.merge(object);
+                return ResponseEntity.status(HttpStatus.OK).body(object);
+            }
+        }catch (Exception e){
+            logger.error("persistObjectUpdate " + e);
+           return jsonErrorMessageResponse(object);
+        }
+
+        finally {
+          try {
+              putPostPersist(object);
+          } catch (Exception e) {
+              logger.error("postPersistObjectUpdate " + e);
+          }
+        }
+    }
+
+
+    @DeleteMapping
+    @Transactional
+    public ResponseEntity<T> deleteObject(@RequestBody T object){
+        logger.info("deletingObject");
+        try {
+            deletePrePersist(object);
+        }catch (Exception e){
+            return jsonMessageResponse(HttpStatus.BAD_REQUEST, e);
+        }
+
+        try {
+            if(object == null){
+                logger.error("object is null ");
+                return jsonErrorMessageResponse(object);
+            }else {
+
+                entityManager.remove(object);
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).body(object);
+            }
+        }catch (Exception e){
+            return jsonErrorMessageResponse(e);
+        }
+
+        finally {
+            try {
+                deletePostPersist(object);
+            } catch (Exception e) {
+                logger.error("postPersistDeleteMethod"+ e);
+            }
+        }
+    }
+
+    @GetMapping("/{id}")
+    @Transactional
+    public ResponseEntity<T> getById(@PathVariable String id){
+        logger.info("get By Id");
+        T objectByID = null;
+
+        try {
+            objectByID = entityManager.find(entityClass, id);
+            if(objectByID == null ){
+                return jsonErrorMessageResponse(HttpStatus.NOT_FOUND);
+            }else{
+                return ResponseEntity.status(HttpStatus.FOUND).body(objectByID);
+            }
+        }catch (Exception e){
+            return jsonErrorMessageResponse(e);
+        }
+        finally {
+            logger.info("post getById persist");
+            try {
+                postGetByIdPersist(objectByID);
+            } catch (Exception e) {
+                return jsonErrorMessageResponse(e);
+            }
+        }
+    }
+
+    @GetMapping("/listSize")
+    @Transactional
+    public ResponseEntity getListSize(T object){
+
+        logger.info("The entity class: "+ entityClass.toString());
+        String name = object.getClass().toString().substring(32,36);
+        //String name2 = name.substring(32,36);
+        logger.info("The Object name: "+ name);
+        String ENTITY = "select b from " + name + " b";
+
+        try {
+            Query query = entityManager.createQuery("select b from " + name + " b");
+            List resultList = query.getResultList();
+
+            Long sizeOfList = resultList.stream().count();
+            logger.info("The size is: " + sizeOfList);
+            return ResponseEntity.ok().body(sizeOfList);
+        }catch (Exception e){
+            return jsonErrorMessageResponse(e);
+        }
+        finally {
+            try {
+                logger.info("Post Fetch Method from Get List Size");
+                getListSizePostFetch(object);
+            }catch (Exception e){
+
+            }
+        }
+    }
 
     protected void postFetch(T object) throws Exception {
     }
@@ -147,15 +252,13 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService{
                     .header("listSize", String.valueOf(listSize))
                     .body(list);
 
-
         } catch (Exception e) {
             logger.error("getList", e);
             return jsonErrorMessageResponse(e);
         }
     }
 
-    protected void postList(List<T> list) throws Exception {
-    }
+    protected void postList(List<T> list) throws Exception {}
 
     private long count(){
         CriteriaBuilder criteriaBuilder = getEntityManager().getCriteriaBuilder();
@@ -206,3 +309,29 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService{
 
     protected abstract String getDefaultOrderBy();
 }
+
+//    @GetMapping("/{id}")
+//    @Transactional
+//    public ResponseEntity fetch(@PathVariable("id") U id) {
+//        logger.info("fetch: " + id);
+//
+//        try {
+//            T t = find(id);
+//            if (t == null) {
+//                return handleObjectNotFoundRequest(id);
+//            } else {
+//                try {
+//                    postFetch(t);
+//                } catch (Exception e) {
+//                    logger.errorv(e, "fetch: " + id);
+//                }
+//                return ResponseEntity.status(HttpStatus.OK).body(t);
+//            }
+//        } catch (NoResultException e) {
+//            logger.error("fetch: " + id, e);
+//            return jsonMessageResponse(HttpStatus.NOT_FOUND, id);
+//        } catch (Exception e) {
+//            logger.error("fetch: " + id, e);
+//            return jsonErrorMessageResponse(e);
+//        }
+//    }
