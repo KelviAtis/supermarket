@@ -10,12 +10,16 @@ import org.springframework.web.context.request.WebRequest;
 
 import java.io.Serializable;
 import java.text.MessageFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 
 public abstract class RsResponseService implements Serializable {
 
@@ -119,8 +123,25 @@ public abstract class RsResponseService implements Serializable {
         return "%" + get(param) + "%";
     }
 
+    protected String _stringParam(String param) {
+        return  get(param);
+    }
+
     protected String likeParamL(String param) {
         return "%" + get(param);
+    }
+
+    protected Double _doubleParam(String param){
+        String value = ui.getParameter(param);
+        return Double.valueOf(value);
+    }
+
+    protected LocalDate _localDateParam(String param) throws ParseException {
+        String temp = ui.getParameter(param);
+        //convert String to LocalDate
+
+        LocalDate localDate = LocalDate.parse(temp, DateTimeFormatter.ofPattern("yyyy/dd/MM"));
+        return localDate;
     }
 
     protected String likeParamR(String param) {
