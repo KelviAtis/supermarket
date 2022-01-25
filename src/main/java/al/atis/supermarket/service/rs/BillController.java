@@ -59,12 +59,6 @@ public class BillController extends RsRepositoryService<Bill, String> {
 
 
     @Override
-    protected void getListSizePostFetch(Bill bill) throws Exception {
-        //bill.setCreated_date(LocalDate.now());
-    }
-
-
-    @Override
     protected void prePersist(Bill bill) throws Exception {
 
         //bill.created_date = LocalDate.now();

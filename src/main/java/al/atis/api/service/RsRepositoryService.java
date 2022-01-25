@@ -82,22 +82,13 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
     protected void postPersist(T object) throws Exception {
     }
 
-    protected void putPrePersist(T object) throws Exception{}
-    protected void putPostPersist(T object) throws Exception{}
-
-    protected void deletePrePersist(T object) throws Exception{}
-    protected void deletePostPersist(T object) throws Exception{}
-
-    protected void postGetByIdPersist(T object) throws Exception{}
-
-    protected void getListSizePostFetch(T object) throws Exception{}
 
     @PutMapping("/{id}")
     @Transactional
-    public ResponseEntity<T> updateObject (@RequestBody T object, @PathVariable String id){
+    public ResponseEntity<T> update (@RequestBody T object, @PathVariable String id){
         logger.info("prePersistUpdatingObject");
         try {
-            putPrePersist(object);
+            prePersist(object);
         }  catch (Exception e) {
             logger.error("prePersistUpdatingObject", e);
             return jsonMessageResponse(HttpStatus.BAD_REQUEST, e);
@@ -118,7 +109,7 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
 
         finally {
           try {
-              putPostPersist(object);
+              persist(object);
           } catch (Exception e) {
               logger.error("postPersistObjectUpdate " + e);
           }
@@ -128,10 +119,10 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
 
     @DeleteMapping
     @Transactional
-    public ResponseEntity<T> deleteObject(@RequestBody T object){
+    public ResponseEntity<T> delete(@RequestBody T object){
         logger.info("deletingObject");
         try {
-            deletePrePersist(object);
+            prePersist(object);
         }catch (Exception e){
             return jsonMessageResponse(HttpStatus.BAD_REQUEST, e);
         }
@@ -151,7 +142,7 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
 
         finally {
             try {
-                deletePostPersist(object);
+                postPersist(object);
             } catch (Exception e) {
                 logger.error("postPersistDeleteMethod"+ e);
             }
@@ -177,7 +168,7 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
         finally {
             logger.info("post getById persist");
             try {
-                postGetByIdPersist(objectByID);
+                postPersist(objectByID);
             } catch (Exception e) {
                 return jsonErrorMessageResponse(e);
             }
@@ -207,7 +198,7 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
         finally {
             try {
                 logger.info("Post Fetch Method from Get List Size");
-                getListSizePostFetch(object);
+                postPersist(object);
             }catch (Exception e){
 
             }
@@ -291,7 +282,6 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
         else {
             orderByExpresions = fromValueToList(getDefaultOrderBy());
         }
-
         for (String orderByExpresion : orderByExpresions){
             if (orderByExpresion.contains(ORDER_BY_ASC)){
                 String property = orderByExpresion.replace(ORDER_BY_ASC, "").trim();
@@ -310,28 +300,3 @@ public abstract class RsRepositoryService <T, U> extends RsResponseService {
     protected abstract String getDefaultOrderBy();
 }
 
-//    @GetMapping("/{id}")
-//    @Transactional
-//    public ResponseEntity fetch(@PathVariable("id") U id) {
-//        logger.info("fetch: " + id);
-//
-//        try {
-//            T t = find(id);
-//            if (t == null) {
-//                return handleObjectNotFoundRequest(id);
-//            } else {
-//                try {
-//                    postFetch(t);
-//                } catch (Exception e) {
-//                    logger.errorv(e, "fetch: " + id);
-//                }
-//                return ResponseEntity.status(HttpStatus.OK).body(t);
-//            }
-//        } catch (NoResultException e) {
-//            logger.error("fetch: " + id, e);
-//            return jsonMessageResponse(HttpStatus.NOT_FOUND, id);
-//        } catch (Exception e) {
-//            logger.error("fetch: " + id, e);
-//            return jsonErrorMessageResponse(e);
-//        }
-//    }
